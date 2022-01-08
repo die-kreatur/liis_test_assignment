@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
-from .serializers import BookingSerializer
+from .serializers import BookingSerializer, PlaceSerializer
 from .models import Booking, Place
 
 
@@ -18,12 +18,12 @@ class BookPlaceView(APIView):
 
             bookings = Booking.objects.filter(place_id=place)
             query = (
-                    Q(date_from__range=[date_from, date_to]) \
-                    | Q(date_to__range=[date_from, date_to])
-                ) | (
-                    Q(date_from__lte=date_from) \
-                    & Q(date_to__gte=date_to)
-                )
+                        Q(date_from__range=[date_from, date_to]) \
+                        | Q(date_to__range=[date_from, date_to])
+                    ) | (
+                        Q(date_from__lte=date_from) \
+                        & Q(date_to__gte=date_to)
+                    )
             bookings = bookings.filter(query)
 
             if bookings:
@@ -68,3 +68,21 @@ class GetBookingsView(APIView):
                 {"Error": "There are no bookings because the place with requested id does not exist"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class FreePlacesView(APIView):
+    """Список свободных мест в указанные даты"""
+    def get(self, request, date_from, date_to):
+        
+        bookings = Booking.objects.filter(date_from__gte=date_from).\
+            filter(date_to__lte=date_to)
+
+        places_to_exclude = []
+        for booking in bookings:
+            places_to_exclude.append(booking.place_id)
+
+        places = Place.objects.exclude(id__in=places_to_exclude)
+        serializer = PlaceSerializer(places, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
