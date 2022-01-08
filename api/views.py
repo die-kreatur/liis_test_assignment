@@ -2,29 +2,21 @@ from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Q
 from .serializers import BookingSerializer, PlaceSerializer
 from .models import Booking, Place
+from .services import bookings_for_time_period
 
 
 class BookPlaceView(APIView):
     """Бронирование рабочих мест на определенный период"""
-
     def post(self, request, format=None):
         try:
             date_from = request.data.get('date_from')
             date_to = request.data.get('date_to')
             place = request.data.get('place')
 
+            bookings = bookings_for_time_period(date_from, date_to)
             bookings = Booking.objects.filter(place_id=place)
-            query = (
-                        Q(date_from__range=[date_from, date_to]) \
-                        | Q(date_to__range=[date_from, date_to])
-                    ) | (
-                        Q(date_from__lte=date_from) \
-                        & Q(date_to__gte=date_to)
-                    )
-            bookings = bookings.filter(query)
 
             if bookings:
                 return Response(
@@ -73,15 +65,8 @@ class GetBookingsView(APIView):
 class FreePlacesView(APIView):
     """Список свободных мест в указанные даты"""
     def get(self, request, date_from, date_to):
-        query = (
-                    Q(date_from__range=[date_from, date_to]) \
-                    | Q(date_to__range=[date_from, date_to])
-                ) | (
-                    Q(date_from__lte=date_from) \
-                    & Q(date_to__gte=date_to)
-                )
-                        
-        bookings = Booking.objects.filter(query)
+
+        bookings = bookings_for_time_period(date_from, date_to)
 
         places_to_exclude = []
         for booking in bookings:
