@@ -73,9 +73,15 @@ class GetBookingsView(APIView):
 class FreePlacesView(APIView):
     """Список свободных мест в указанные даты"""
     def get(self, request, date_from, date_to):
-        
-        bookings = Booking.objects.filter(date_from__gte=date_from).\
-            filter(date_to__lte=date_to)
+        query = (
+                    Q(date_from__range=[date_from, date_to]) \
+                    | Q(date_to__range=[date_from, date_to])
+                ) | (
+                    Q(date_from__lte=date_from) \
+                    & Q(date_to__gte=date_to)
+                )
+                        
+        bookings = Booking.objects.filter(query)
 
         places_to_exclude = []
         for booking in bookings:
@@ -85,4 +91,3 @@ class FreePlacesView(APIView):
         serializer = PlaceSerializer(places, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
-        
