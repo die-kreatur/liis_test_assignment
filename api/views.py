@@ -65,14 +65,21 @@ class GetBookingsView(APIView):
 class FreePlacesView(APIView):
     """Список свободных мест в указанные даты"""
     def get(self, request, date_from, date_to):
+        try:
+            bookings = bookings_for_time_period(date_from, date_to)
 
-        bookings = bookings_for_time_period(date_from, date_to)
+            places_to_exclude = []
+            for booking in bookings:
+                places_to_exclude.append(booking.place_id)
 
-        places_to_exclude = []
-        for booking in bookings:
-            places_to_exclude.append(booking.place_id)
+            places = Place.objects.exclude(id__in=places_to_exclude)
+            serializer = PlaceSerializer(places, many=True)
 
-        places = Place.objects.exclude(id__in=places_to_exclude)
-        serializer = PlaceSerializer(places, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        except ValidationError:
+            return Response(
+                {"Error": "Invalid url"},
+                status=status.HTTP_404_NOT_FOUND
+                )
+                
