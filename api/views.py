@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from .serializers import BookingSerializer, PlaceSerializer
 from .models import Booking, Place
@@ -9,6 +10,8 @@ from .services import bookings_for_time_period
 
 class BookPlaceView(APIView):
     """Бронирование рабочих мест на определенный период"""
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request, format=None):
         try:
             date_from = request.data.get('date_from')
@@ -16,7 +19,7 @@ class BookPlaceView(APIView):
             place = request.data.get('place')
 
             bookings = bookings_for_time_period(date_from, date_to)
-            bookings = Booking.objects.filter(place_id=place)
+            bookings = bookings.filter(place_id=place)
 
             if bookings:
                 return Response(
